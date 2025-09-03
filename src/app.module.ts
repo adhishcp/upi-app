@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { BankModule } from './bank-account/bank-account.module';
@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import jwtConfig from './config/jwt.config';
 import { APP_PIPE } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { IdempotencyMiddleware } from './middleware/idempotency.middleware';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { ValidationPipe } from '@nestjs/common';
     }),
     PrismaModule,
     AuthModule,
-    BankModule
+    BankModule,
   ],
   controllers: [],
   providers: [
@@ -29,4 +30,8 @@ import { ValidationPipe } from '@nestjs/common';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(IdempotencyMiddleware).forRoutes('upi/transfer');
+  }
+}

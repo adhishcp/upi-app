@@ -20,7 +20,7 @@ model user {
   name      String
   email     String
   password  String
-  mobile    String        @unique
+  mobile    String?        @unique
   vpa       String        @unique
   accounts  bank_account[]
   createdAt DateTime      @default(now())

@@ -6,6 +6,7 @@ import {
   Get,
   UnauthorizedException,
   ValidationPipe,
+  ConflictException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -35,7 +36,7 @@ export class AuthController {
       return await this.authService.register(registerDto);
     } catch (error) {
       if (error.code === 'P2002') {
-        throw new UnauthorizedException('Email already exists');
+        throw new ConflictException('Email or VPA already exist');
       }
       throw error;
     }
