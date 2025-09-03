@@ -1,4 +1,12 @@
-import { Controller, Post, Body, UseGuards, Get, UnauthorizedException, ValidationPipe } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Get,
+  UnauthorizedException,
+  ValidationPipe,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import type { User, UserWithoutPassword } from '../types/user.types';
@@ -24,11 +32,7 @@ export class AuthController {
   @Post('register')
   async register(@Body(ValidationPipe) registerDto: RegisterDto) {
     try {
-      return await this.authService.register(
-        registerDto.email,
-        registerDto.password,
-        registerDto.name,
-      );
+      return await this.authService.register(registerDto);
     } catch (error) {
       if (error.code === 'P2002') {
         throw new UnauthorizedException('Email already exists');

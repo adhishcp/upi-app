@@ -15,12 +15,53 @@ enum Role {
   ADMIN
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
+model user {
+  id        String        @id @default(cuid())
+  name      String
+  email     String
   password  String
-  name      String?
-  role      Role     @default(USER)
+  mobile    String        @unique
+  vpa       String        @unique
+  accounts  bank_account[]
+  createdAt DateTime      @default(now())
+}
+
+model bank_account {
+  id         String        @id @default(cuid())
+  userId     String
+  accountRef String        @unique // simulated bank account ref
+  ledger     ledger_entry[]
+  user       user          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime      @default(now())
+}
+
+model ledger_entry {
+  id         String   @id @default(cuid())
+  accountId  String
+  txnId      String
+  type       String   // "debit" | "credit"
+  amount     BigInt
+  createdAt  DateTime @default(now())
+  bank_account bank_account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  @@index([txnId])
+}
+
+model transaction {
+  id         String   @id
+  fromVpa    String
+  toVpa      String
+  amount     BigInt
+  status     String   @default("pending") // pending | success | failed
+  reason     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  @@index([fromVpa, toVpa])
+}
+
+model idempotency_key {
+  id        String   @id
+  request   Json
+  response  Json?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@index([createdAt])
 }

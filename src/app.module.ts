@@ -1,19 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { PrismaService } from './prisma/prisma.service';
+import { BankModule } from './bank-account/bank-account.module';
+import { PrismaModule } from './prisma/prisma.module';
 import jwtConfig from './config/jwt.config';
-import { ValidatorOptions } from 'class-validator';
 import { APP_PIPE } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-
-const validationOptions = {
-  whitelist: true,
-  forbidNonWhitelisted: true,
-  transform: true,
-};
 
 @Module({
   imports: [
@@ -21,15 +13,19 @@ const validationOptions = {
       isGlobal: true,
       load: [jwtConfig],
     }),
+    PrismaModule,
     AuthModule,
+    BankModule
   ],
-  controllers: [AppController],
+  controllers: [],
   providers: [
-    AppService,
-    PrismaService,
     {
       provide: APP_PIPE,
-      useValue: new ValidationPipe(validationOptions),
+      useValue: new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
     },
   ],
 })

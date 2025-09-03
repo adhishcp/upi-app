@@ -1,11 +1,11 @@
 export interface User {
-  id: number;
+  id: string;  
+  name: string;
   email: string;
   password: string;
-  name?: string | null;
-  role: 'USER' | 'ADMIN';
+  mobile: string;
+  vpa: string;
   createdAt: Date;
-  updatedAt: Date;
 }
 
 export type UserWithoutPassword = Omit<User, 'password'>;
