@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
+import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString } from "class-validator";
 
 
 export class BankAccDto  {
@@ -12,4 +12,11 @@ export class BankAccDto  {
     @IsNotEmpty()
     @IsString()
     accountRef: string
+}
+
+export class DepositDto {
+    @IsNotEmpty()
+    @IsInt()
+    @IsPositive()
+    amount: number
 }

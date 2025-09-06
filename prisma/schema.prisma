@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,51 +7,49 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  USER
-  ADMIN
-}
-
 model user {
-  id        String        @id @default(cuid())
+  id        String         @id @default(cuid())
   name      String
   email     String
   password  String
   mobile    String?        @unique
-  vpa       String        @unique
+  vpa       String         @unique
+  createdAt DateTime       @default(now())
   accounts  bank_account[]
-  createdAt DateTime      @default(now())
 }
 
 model bank_account {
-  id         String        @id @default(cuid())
+  id         String         @id @default(cuid())
   userId     String
-  accountRef String        @unique // simulated bank account ref
+  accountRef String         @unique
+  createdAt  DateTime       @default(now())
+  user       user           @relation(fields: [userId], references: [id], onDelete: Cascade)
   ledger     ledger_entry[]
-  user       user          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt  DateTime      @default(now())
 }
 
 model ledger_entry {
-  id         String   @id @default(cuid())
-  accountId  String
-  txnId      String
-  type       String   // "debit" | "credit"
-  amount     BigInt
-  createdAt  DateTime @default(now())
+  id           String       @id @default(cuid())
+  accountId    String
+  txnId        String
+  type         String
+  amount       BigInt
+  createdAt    DateTime     @default(now())
   bank_account bank_account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
   @@index([txnId])
 }
 
 model transaction {
-  id         String   @id
-  fromVpa    String
-  toVpa      String
-  amount     BigInt
-  status     String   @default("pending") // pending | success | failed
-  reason     String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id               String           @id
+  fromVpa          String
+  toVpa            String
+  amount           BigInt
+  status           String           @default("pending")
+  reason           String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  transaction_type TransactionType?
+
   @@index([fromVpa, toVpa])
 }
 
@@ -63,5 +58,19 @@ model idempotency_key {
   request   Json
   response  Json?
   createdAt DateTime @default(now())
+
   @@index([createdAt])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum TransactionType {
+  DIRECT_DEPOSIT
+  TRANSFER
+  WITHDRAWAL
+  PAYMENT
+  REFUND
 }

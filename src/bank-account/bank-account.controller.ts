@@ -1,13 +1,14 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { BankAccDto } from './dto/bank-account.dto';
+import { BankAccDto, DepositDto } from './dto/bank-account.dto';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User } from '../types/user.types';
 import { BankAccountService } from './bank-account.service';
@@ -40,6 +41,41 @@ export class BankAccountController {
       return errorResponseBuilder(res);
     }
     return responseBuilder(res);
+  }
+
+  // List accounts
+  @Get(':userId')
+  async listAccunts(@Param('userId') userId: string) {
+    const res = await this.bankAccountService.getAccountsByUser(userId);
+    if (res.error) {
+      return errorResponseBuilder(res);
+    }
+
+    return responseBuilder(res);
+  }
+
+  // UnLink Account
+  @Delete(':baId/unlink')
+  async unlink(@Param('baId') baId: string, @GetUser() user: User) {
+    const res = await this.bankAccountService.unLinkAcc(baId, user.id);
+    if (res.error) {
+      return errorResponseBuilder(res);
+    }
+
+    return responseBuilder(res);
+  }
+
+  // deposite balance
+  @Post(":baId/deposit") 
+  async deposit(@Param("baId") baId:string , @Body() body: DepositDto){
+    const response = await this.bankAccountService.depositCash(baId, body.amount)    
+    console.log(response);
+    
+    if(response.error){
+      return errorResponseBuilder(response)
+    }
+
+    return responseBuilder(response)
   }
 
   @Get()

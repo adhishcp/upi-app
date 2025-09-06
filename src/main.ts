@@ -11,7 +11,7 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Add global prefix (optional)
+  // Add global prefix "api"
   app.setGlobalPrefix('api');
 
   // Enable validation
