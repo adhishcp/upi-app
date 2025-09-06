@@ -7,6 +7,7 @@ import jwtConfig from './config/jwt.config';
 import { APP_PIPE } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { IdempotencyMiddleware } from './middleware/idempotency.middleware';
+import { TransactionModule } from './transactions/transactions.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { IdempotencyMiddleware } from './middleware/idempotency.middleware';
     PrismaModule,
     AuthModule,
     BankModule,
+    TransactionModule,
   ],
   controllers: [],
   providers: [

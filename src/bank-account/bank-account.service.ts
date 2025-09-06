@@ -1,23 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { BankAccDto } from './dto/bank-account.dto';
 import { PrismaService } from '../prisma/prisma.service';
-import { createErrorData } from '../utils/error.util';
-import { createSuccessData } from '../utils/response.util';
 import type { User } from '../types/user.types';
+import { createErrorData, createResponseData } from '../utils/response.builder';
+import { ValidateUserExists } from '../common/validators/user.validator';
 
 @Injectable()
 export class BankAccountService {
   constructor(private prisma: PrismaService) {}
 
-  async create(body: BankAccDto, user: User) {
+  async create(body: BankAccDto, userId: string) {
     try {
+      // validate User exists
+      await ValidateUserExists(this.prisma, userId);
+
       const data = await this.prisma.bank_account.create({
         data: {
-          userId: user.id.toString(),
+          userId: userId,
           accountRef: body.accountRef,
         },
       });
-      return createSuccessData(data);
+      return createResponseData(data);
     } catch (error) {
       return createErrorData(error);
     }
@@ -33,7 +36,7 @@ export class BankAccountService {
           accountRef: body.accountRef,
         },
       });
-      return createSuccessData(data);
+      return createResponseData(data);
     } catch (error) {
       return createErrorData(error);
     }
@@ -46,7 +49,7 @@ export class BankAccountService {
           ledger: true,
         },
       });
-      return createSuccessData(data);
+      return createResponseData(data);
     } catch (error) {
       return createErrorData(error);
     }
