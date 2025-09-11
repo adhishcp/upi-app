@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -65,12 +66,33 @@ export class BankAccountController {
     return responseBuilder(res);
   }
 
-  // deposite balance
-  @Post(":baId/deposit") 
-  async deposit(@Param("baId") baId:string , @Body() body: DepositDto){
-    const response = await this.bankAccountService.depositCash(baId, body.amount)    
-    console.log(response);
-    
+  // deposit balance
+  @Post(':baId/deposit')
+  async deposit(
+    @Param('baId') baId: string,
+    @Body() body: DepositDto,
+    @Headers('idempotency-key') idempotencyKey: string,
+    @GetUser() user: User,
+  ) {
+    const response = await this.bankAccountService.depositCash(
+      baId,
+      body.amount,
+      idempotencyKey,
+      user.id,
+    );
+
+    if (response.error) {
+      return errorResponseBuilder(response);
+    }
+
+    return responseBuilder(response);
+  }
+
+  // check bank balance
+  @Get(':baId/balance')
+  async checkBal(@Param('baId') baId: string, @GetUser() user: User) {
+    const response = await this.bankAccountService.checkBalance(baId, user.id);
+
     if(response.error){
       return errorResponseBuilder(response)
     }

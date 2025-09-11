@@ -6,10 +6,15 @@ import { createErrorData, createResponseData } from '../utils/response.builder';
 import { ValidateUserExists } from '../common/validators/user.validator';
 import { throwError } from '../utils/throwError';
 import { BANK_ACCOUNT_ERRORS } from './error-codes';
+import { TransactionType } from '.prisma/client';
+import TransactionManager from '../common/managers/transaction.manager';
 
 @Injectable()
 export class BankAccountService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private transactionManager: TransactionManager,
+  ) {}
 
   async create(body: BankAccDto, userId: string) {
     try {
@@ -84,53 +89,99 @@ export class BankAccountService {
     }
   }
   // deposite money
-  async depositCash(baId: string, amount: number) {
+  async depositCash(
+    baId: string,
+    amount: number,
+    idemKey: string,
+    userId: string,
+  ) {
     try {
-      const acc = await this.prisma.bank_account.findUnique({
-        where: {
-          id: baId,
-        },
-        include: {
-          ledger: true,
-        },
+      return this.transactionManager.runTransaction(async (prisma) => {
+        const existingTxn = await prisma.idempotency_key.findUnique({
+          where: { id: idemKey },
+        });
+
+        if (existingTxn) {
+          return createResponseData('idempotency key already exists');
+        }
+
+        const acc = await prisma.bank_account.findUnique({
+          where: {
+            id: baId,
+            userId,
+          },
+          include: {
+            user: true,
+          },
+        });
+
+        // create new transaction
+        const txn = await prisma.transaction.create({
+          data: {
+            idempotencyKey: idemKey,
+            fromVpa: 'direct@upi',
+            toVpa: acc.user.vpa,
+            transaction_type: TransactionType.DIRECT_DEPOSIT,
+            amount: BigInt(Math.round(amount * 100)),
+            status: 'completed',
+          },
+        });
+
+        // record ledger entry
+        await prisma.ledger_entry.create({
+          data: {
+            accountId: acc.id,
+            type: 'credit',
+            amount: BigInt(Math.round(amount * 100)),
+            txnId: txn.id,
+          },
+        });
+
+        return createResponseData({
+          ...txn,
+          amount: (Number(txn.amount) / 100).toFixed(2),
+        });
       });
-
-      let currentBal = 0;
-      acc.ledger.forEach((item) => {
-        currentBal += Number(item.amount);
-      });
-
-      const newAmt = currentBal + amount;
-
-      // create new transaction
-      // await this.prisma.transaction.create({
-      //   data:{
-          
-      //   }
-      // })
-
-      // await this.prisma.ledger_entry.create({
-      //   data:{
-      //     accountId: acc.id,
-      //     type: "credit",
-      //     amount: newAmt,
-      //     txnId: 
-      //   }
-      // })
-
-      return createResponseData(currentBal);
     } catch (error) {
       return createErrorData(error);
     }
   }
 
-  // Get account balance
-  async showBalance(baId: string) {
+  // check balance
+  async checkBalance(baId: string, userId: string) {
     try {
+      // find account
       const account = await this.prisma.bank_account.findFirst({
-        include: {
-          ledger: true,
+        where: {
+          id: baId,
+          userId,
         },
+        select: {
+          ledger: {
+            select: {
+              type: true,
+              amount: true,
+            },
+          },
+        },
+      });
+
+      if (!account) throw new BadRequestException('Account Not Found');
+
+      // compute balance
+      let balance = BigInt(0);
+      account.ledger.forEach((entry) => {
+        if (entry.type === 'credit') {
+          balance += entry.amount;
+        } else if (entry.type === 'debit') {
+          balance -= entry.amount;
+        }
+      });
+
+      return createResponseData({
+        balance: (Number(balance) / 100).toFixed(2),
+        currency: 'INR',
+        totalEntries: account.ledger.length,
       });
     } catch (error) {
       return createErrorData(error);

@@ -40,7 +40,8 @@ model ledger_entry {
 }
 
 model transaction {
-  id               String           @id
+  id               String           @id @default(cuid()) // unique txn id
+  idempotencyKey   String           @unique // new field for idempotency
   fromVpa          String
   toVpa            String
   amount           BigInt

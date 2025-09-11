@@ -74,17 +74,17 @@ export class TransactionsService {
 
           if (currentBal < amt)
             throwError(TRANSACTION_ERROR_CODES.INSUFFICIENT_BALANCE);
-         
 
           //   create pending transaction
           const txn = await prisma.transaction.create({
             data: {
-              id: idempotencyKey,
+              idempotencyKey: idempotencyKey,
               fromVpa: fromVpa,
               toVpa: toVpa,
               amount: amt,
               createdAt: new Date(),
               status: 'pending',
+              transaction_type: 'TRANSFER',
             },
           });
 

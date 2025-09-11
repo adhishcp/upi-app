@@ -35,5 +35,6 @@ import { TransactionModule } from './transactions/transactions.module';
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(IdempotencyMiddleware).forRoutes('upi/transfer');
+    consumer.apply(IdempotencyMiddleware).forRoutes(':baId/deposit');
   }
 }
