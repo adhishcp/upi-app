@@ -7,65 +7,141 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+//
+// ===================== MODELS =====================
+//
+
 model user {
-  id        String         @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  email     String
+  email     String   @unique
   password  String
-  mobile    String?        @unique
-  vpa       String         @unique
-  createdAt DateTime       @default(now())
-  accounts  bank_account[]
+  mobile    String?  @unique
+  vpa       String   @unique
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+
+  // relations
+  accounts    bank_account[]
+  sessions    session[]
+  kyc         kyc?
+  idempotency idempotency_key[]
+}
+
+model session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model kyc {
+  id         String    @id @default(cuid())
+  userId     String    @unique
+  documentId String
+  status     KycStatus @default(PENDING)
+  createdAt  DateTime  @default(now())
+
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model bank_account {
-  id         String         @id @default(cuid())
+  id         String   @id @default(cuid())
   userId     String
-  accountRef String         @unique
-  createdAt  DateTime       @default(now())
-  user       user           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ledger     ledger_entry[]
+  accountRef String   @unique
+  createdAt  DateTime @default(now())
+
+  // relations
+  user     user              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledger   ledger_entry[]
+  balances account_balance[]
+  txFrom   transaction[]     @relation("tx_from_account")
+  txTo     transaction[]     @relation("tx_to_account")
+  disputes dispute[]
 }
 
 model ledger_entry {
-  id           String       @id @default(cuid())
-  accountId    String
-  txnId        String
-  type         String
-  amount       BigInt
-  createdAt    DateTime     @default(now())
+  id        String     @id @default(cuid())
+  accountId String
+  txnId     String
+  type      LedgerType
+  amount    BigInt
+  createdAt DateTime   @default(now())
+
   bank_account bank_account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transaction  transaction  @relation(fields: [txnId], references: [id], onDelete: Cascade)
 
   @@index([txnId])
 }
 
 model transaction {
-  id               String           @id @default(cuid()) // unique txn id
-  idempotencyKey   String           @unique // new field for idempotency
+  id               String            @id @default(cuid()) // unique txn id
+  idempotencyKey   String            @unique
+  fromAccountId    String?
+  toAccountId      String?
   fromVpa          String
   toVpa            String
   amount           BigInt
-  status           String           @default("pending")
+  status           TransactionStatus @default(PENDING)
   reason           String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   transaction_type TransactionType?
+
+  // relations
+  fromAccount   bank_account?  @relation("tx_from_account", fields: [fromAccountId], references: [id])
+  toAccount     bank_account?  @relation("tx_to_account", fields: [toAccountId], references: [id])
+  ledgerEntries ledger_entry[]
+  disputes      dispute[]
 
   @@index([fromVpa, toVpa])
 }
 
+model account_balance {
+  id        String   @id @default(cuid())
+  accountId String
+  balance   BigInt   @default(0)
+  updatedAt DateTime @updatedAt
+
+  account bank_account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
 model idempotency_key {
-  id        String   @id
+  id        String   @id @default(cuid())
+  userId    String?
   request   Json
   response  Json?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user user? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
 }
 
+model dispute {
+  id        String        @id @default(cuid())
+  txnId     String
+  accountId String
+  reason    String
+  status    DisputeStatus @default(OPEN)
+  createdAt DateTime      @default(now())
+
+  transaction transaction  @relation(fields: [txnId], references: [id], onDelete: Cascade)
+  account     bank_account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+//
+// ===================== ENUMS =====================
+//
+
 enum Role {
   USER
   ADMIN
+  SUPPORT
 }
 
 enum TransactionType {
@@ -74,4 +150,28 @@ enum TransactionType {
   WITHDRAWAL
   PAYMENT
   REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum LedgerType {
+  CREDIT
+  DEBIT
+}
+
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+  REJECTED
 }

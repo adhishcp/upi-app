@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import TransactionManager from '../common/managers/transaction.manager';
-import { Prisma } from '.prisma/client';
+import { LedgerType, Prisma, TransactionStatus } from '.prisma/client';
 import { createResponseData } from '../utils/response.builder';
 import { createErrorData } from '../utils/response.builder';
 import { ErrorGenerator } from '../utils/error-generator';
@@ -83,7 +83,7 @@ export class TransactionsService {
               toVpa: toVpa,
               amount: amt,
               createdAt: new Date(),
-              status: 'pending',
+              status: TransactionStatus.PENDING,
               transaction_type: 'TRANSFER',
             },
           });
@@ -93,13 +93,13 @@ export class TransactionsService {
             data: [
               {
                 accountId: fromAcc.id,
-                type: 'debit',
+                type: LedgerType.DEBIT,
                 amount: amt,
                 txnId: txn.id,
               },
               {
                 accountId: toAcc.id,
-                type: 'credit',
+                type: LedgerType.CREDIT,
                 amount: amt,
                 txnId: txn.id,
               },
@@ -112,7 +112,7 @@ export class TransactionsService {
               id: txn.id,
             },
             data: {
-              status: 'Completed',
+              status: TransactionStatus.COMPLETED,
             },
           });
 

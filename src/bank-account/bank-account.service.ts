@@ -6,7 +6,7 @@ import { createErrorData, createResponseData } from '../utils/response.builder';
 import { ValidateUserExists } from '../common/validators/user.validator';
 import { throwError } from '../utils/throwError';
 import { BANK_ACCOUNT_ERRORS } from './error-codes';
-import { TransactionType } from '.prisma/client';
+import { LedgerType, TransactionStatus, TransactionType } from '.prisma/client';
 import TransactionManager from '../common/managers/transaction.manager';
 
 @Injectable()
@@ -123,7 +123,7 @@ export class BankAccountService {
             toVpa: acc.user.vpa,
             transaction_type: TransactionType.DIRECT_DEPOSIT,
             amount: BigInt(Math.round(amount * 100)),
-            status: 'completed',
+            status: TransactionStatus.COMPLETED,
           },
         });
 
@@ -131,7 +131,7 @@ export class BankAccountService {
         await prisma.ledger_entry.create({
           data: {
             accountId: acc.id,
-            type: 'credit',
+            type: LedgerType.CREDIT,
             amount: BigInt(Math.round(amount * 100)),
             txnId: txn.id,
           },
@@ -171,9 +171,9 @@ export class BankAccountService {
       // compute balance
       let balance = BigInt(0);
       account.ledger.forEach((entry) => {
-        if (entry.type === 'credit') {
+        if (entry.type === LedgerType.CREDIT) {
           balance += entry.amount;
-        } else if (entry.type === 'debit') {
+        } else if (entry.type === LedgerType.DEBIT) {
           balance -= entry.amount;
         }
       });
