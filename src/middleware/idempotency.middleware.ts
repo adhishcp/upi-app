@@ -7,7 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Request, Response, NextFunction } from 'express';
 
 @Injectable()
-export class IdempotencyMiddleware implements NestMiddleware {
+export class IdempotencyGuard implements NestMiddleware {
   constructor(private prisma: PrismaService) {}
 
   async use(req: Request, res: Response, next: NextFunction) {
@@ -22,7 +22,7 @@ export class IdempotencyMiddleware implements NestMiddleware {
     }
 
     // Check DB
-    const record = await this.prisma.idempotency_key.findUnique({
+    const record = await this.prisma.idempotencyKey.findUnique({
       where: {
         id: idempotencyKey,
       },
@@ -33,7 +33,7 @@ export class IdempotencyMiddleware implements NestMiddleware {
     }
 
     // store request snapshot (and let controller create txn with same id)
-    await this.prisma.idempotency_key.upsert({
+    await this.prisma.idempotencyKey.upsert({
       where: { id: idempotencyKey },
       create: { id: idempotencyKey, request: req.body },
       update: { request: req.body },

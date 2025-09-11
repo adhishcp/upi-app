@@ -6,8 +6,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import jwtConfig from './config/jwt.config';
 import { APP_PIPE } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { IdempotencyMiddleware } from './middleware/idempotency.middleware';
 import { TransactionModule } from './transactions/transactions.module';
+import { IdempotencyGuard } from './middleware/idempotency.middleware';
 
 @Module({
   imports: [
@@ -34,7 +34,7 @@ import { TransactionModule } from './transactions/transactions.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(IdempotencyMiddleware).forRoutes('upi/transfer');
-    consumer.apply(IdempotencyMiddleware).forRoutes(':baId/deposit');
+    consumer.apply(IdempotencyGuard).forRoutes('upi/transfer');
+    consumer.apply(IdempotencyGuard).forRoutes(':baId/deposit');
   }
 }

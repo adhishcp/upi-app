@@ -1,39 +1,28 @@
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
-import type { User, UserWithoutPassword } from '../../types/user.types';
-
-interface JwtPayload {
-  email: string;
-  sub: number;
-  role: string;
-}
+import { AuthService, JwtPayload } from '../auth.service';
+import { User } from '../../types/user.types';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private configService: ConfigService,
-    private prisma: PrismaService,
+    private authService: AuthService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('jwt.secret') || 'fallback-secret',
+      secretOrKey: configService.get<string>('JWT_SECRET'),
     });
   }
 
-  async validate(payload: JwtPayload): Promise<UserWithoutPassword> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: String(payload.sub) },
-    });
-
+  async validate(payload: JwtPayload): Promise<User> {
+    const user = await this.authService.validateSession(payload.sessionId);
     if (!user) {
-      throw new UnauthorizedException('User no longer exists');
+      throw new UnauthorizedException('Session expired or invalid');
     }
-
-    const { password, ...result } = user;
-    return result as UserWithoutPassword;
+    return user;
   }
 }
