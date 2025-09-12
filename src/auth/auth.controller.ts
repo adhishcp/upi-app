@@ -14,11 +14,18 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { GetUser } from './decorators/get-user.decorator';
-import { LoginDto, RegisterDto, RefreshTokenDto, LogoutDto } from './dto/auth.dto';
+import {
+  LoginDto,
+  RegisterDto,
+  RefreshTokenDto,
+  LogoutDto,
+} from './dto/auth.dto';
 import { User } from '../types/user.types';
 import { Public } from './decorators/public.decorator';
 import { ApiResponse } from '../common/interfaces/api-response.interface';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { errorResponseBuilder } from '../utils/response.builder';
+import { responseBuilder } from '../utils/response.builder';
 
 @Controller('auth')
 export class AuthController {
@@ -27,30 +34,12 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  async register(@Body() registerDto: RegisterDto): Promise<ApiResponse> {
-    try {
-      const result = await this.authService.register(registerDto);
-      return {
-        success: true,
-        message: 'User registered successfully',
-        data: result,
-      };
-    } catch (error) {
-      if (error.code === 'P2002') {
-        const target = error.meta?.target;
-        if (target?.includes('email')) {
-          throw new ConflictException('Email already exists');
-        }
-        if (target?.includes('vpa')) {
-          throw new ConflictException('VPA already exists');
-        }
-        if (target?.includes('mobile')) {
-          throw new ConflictException('Mobile number already exists');
-        }
-        throw new ConflictException('User already exists');
-      }
-      throw error;
+  async register(@Body() registerDto: RegisterDto) {
+    const result = await this.authService.register(registerDto);
+    if (result.error) {
+      return errorResponseBuilder(result);
     }
+    return responseBuilder(result);
   }
 
   @Public()
@@ -71,8 +60,12 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto): Promise<ApiResponse> {
-    const result = await this.authService.refreshToken(refreshTokenDto.refreshToken);
+  async refreshToken(
+    @Body() refreshTokenDto: RefreshTokenDto,
+  ): Promise<ApiResponse> {
+    const result = await this.authService.refreshToken(
+      refreshTokenDto.refreshToken,
+    );
     return {
       success: true,
       message: 'Token refreshed successfully',
@@ -91,7 +84,7 @@ export class AuthController {
     if (!token) {
       throw new BadRequestException('No token provided');
     }
-    
+
     await this.authService.logout(user.id, token);
     return {
       success: true,

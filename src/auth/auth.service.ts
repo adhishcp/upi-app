@@ -14,6 +14,10 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { User } from '../types/user.types';
 import { JwtSignOptions } from 'jsonwebtoken'; // Add this import
+import { createErrorData, createResponseData } from '../utils/response.builder';
+import { throwError } from '../utils/throwError';
+import { AUTH_ERROR_CODES } from './error-codes';
+import { ErrorGenerator } from '../utils/error-generator';
 
 export interface JwtPayload {
   sub: string;
@@ -43,45 +47,53 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(registerDto: RegisterDto): Promise<Omit<User, 'password'>> {
-    // Check if user already exists
-    const existingUser = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: registerDto.email },
-          { vpa: registerDto.vpa },
-          ...(registerDto.mobile ? [{ mobile: registerDto.mobile }] : []),
-        ],
-      },
-    });
+  async register(registerDto: RegisterDto) {
+    try {
+      // Check if user already exists
+      const existingUser = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: registerDto.email },
+            { vpa: registerDto.vpa },
+            ...(registerDto.mobile ? [{ mobile: registerDto.mobile }] : []),
+          ],
+        },
+      });
 
-    if (existingUser) {
-      if (existingUser.email === registerDto.email) {
-        throw new ConflictException('Email already exists');
+      if (existingUser) {
+        if (existingUser.email === registerDto.email) {
+          throw new ErrorGenerator(AUTH_ERROR_CODES.EMAIL_ALREADY_EXISTS);
+        }
+        if (existingUser.vpa === registerDto.vpa) {
+          throw new ErrorGenerator(AUTH_ERROR_CODES.VPA_ALREADY_EXISTS);
+        }
+
+        if (existingUser.mobile === registerDto.mobile) {
+          throw new ErrorGenerator(AUTH_ERROR_CODES.MOBILE_ALREADY_EXISTS);
+        }
       }
-      if (existingUser.vpa === registerDto.vpa) {
-        throw new ConflictException('VPA already exists');
-      }
-      if (existingUser.mobile === registerDto.mobile) {
-        throw new ConflictException('Mobile number already exists');
-      }
+
+      const hashedPassword = await bcrypt.hash(
+        registerDto.password,
+        this.SALT_ROUNDS,
+      );
+
+      const user = await this.prisma.user.create({
+        data: {
+          email: registerDto.email,
+          password: hashedPassword,
+          name: registerDto.name,
+          mobile: registerDto.mobile,
+          vpa: registerDto.vpa,
+          role: registerDto.role || Role.USER,
+        },
+      });
+
+      const { password, ...result } = user;
+      return createResponseData(result);
+    } catch (error) {
+      return createErrorData(error);
     }
-
-    const hashedPassword = await bcrypt.hash(registerDto.password, this.SALT_ROUNDS);
-
-    const user = await this.prisma.user.create({
-      data: {
-        email: registerDto.email,
-        password: hashedPassword,
-        name: registerDto.name,
-        mobile: registerDto.mobile,
-        vpa: registerDto.vpa,
-        role: registerDto.role || Role.USER,
-      },
-    });
-
-    const { password, ...result } = user;
-    return result;
   }
 
   async login(loginDto: LoginDto, userAgent?: string): Promise<AuthResult> {
@@ -97,14 +109,16 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
-
     if (user && (await bcrypt.compare(password, user.password))) {
       return user;
     }
     return null;
   }
 
-  private async generateAuthTokens(user: User, userAgent?: string): Promise<AuthResult> {
+  private async generateAuthTokens(
+    user: User,
+    userAgent?: string,
+  ): Promise<AuthResult> {
     // Create session
     const session = await this.prisma.session.create({
       data: {
@@ -153,10 +167,12 @@ export class AuthService {
     };
   }
 
-  async refreshToken(refreshToken: string): Promise<Omit<AuthResult, 'refreshToken'>> {
+  async refreshToken(
+    refreshToken: string,
+  ): Promise<Omit<AuthResult, 'refreshToken'>> {
     try {
       const payload = this.jwtService.verify(refreshToken);
-      
+
       const session = await this.prisma.session.findFirst({
         where: {
           id: payload.sessionId,
@@ -182,7 +198,10 @@ export class AuthService {
         expiresIn: this.ACCESS_TOKEN_EXPIRY,
       };
 
-      const newAccessToken = this.jwtService.sign(newPayload as any, signOptions);
+      const newAccessToken = this.jwtService.sign(
+        newPayload as any,
+        signOptions,
+      );
 
       const { password, ...userWithoutPassword } = session.user;
 
