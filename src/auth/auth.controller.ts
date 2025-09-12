@@ -60,17 +60,15 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refreshToken(
-    @Body() refreshTokenDto: RefreshTokenDto,
-  ): Promise<ApiResponse> {
+  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     const result = await this.authService.refreshToken(
       refreshTokenDto.refreshToken,
     );
-    return {
-      success: true,
-      message: 'Token refreshed successfully',
-      data: result,
-    };
+    if (result.error) {
+      return errorResponseBuilder(result);
+    }
+
+    return responseBuilder(result);
   }
 
   @Post('logout')
@@ -94,13 +92,13 @@ export class AuthController {
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)
-  async getProfile(@GetUser() user: User): Promise<ApiResponse> {
+  async getProfile(@GetUser() user: User) {
     const profile = await this.authService.getProfile(user.id);
-    return {
-      success: true,
-      message: 'Profile retrieved successfully',
-      data: profile,
-    };
+    if (profile.error) {
+      return errorResponseBuilder(profile);
+    }
+
+    return responseBuilder(profile);
   }
 
   @Get('sessions')

@@ -96,13 +96,17 @@ export class AuthService {
     }
   }
 
-  async login(loginDto: LoginDto, userAgent?: string): Promise<AuthResult> {
-    const user = await this.validateUser(loginDto.email, loginDto.password);
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+  async login(loginDto: LoginDto, userAgent?: string) {
+    try {
+      const user = await this.validateUser(loginDto.email, loginDto.password);
+      if (!user) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
 
-    return this.generateAuthTokens(user, userAgent);
+      return this.generateAuthTokens(user, userAgent);
+    } catch (error) {
+      return createErrorData(error);
+    }
   }
 
   async validateUser(email: string, password: string): Promise<User | null> {
@@ -167,9 +171,7 @@ export class AuthService {
     };
   }
 
-  async refreshToken(
-    refreshToken: string,
-  ): Promise<Omit<AuthResult, 'refreshToken'>> {
+  async refreshToken(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken);
 
@@ -205,13 +207,15 @@ export class AuthService {
 
       const { password, ...userWithoutPassword } = session.user;
 
-      return {
+      const updatedData = {
         user: userWithoutPassword,
         accessToken: newAccessToken,
         expiresIn: 15 * 60,
       };
+
+      return createResponseData(updatedData);
     } catch (error) {
-      throw new UnauthorizedException('Invalid refresh token');
+      return createErrorData(error);
     }
   }
 
@@ -233,32 +237,36 @@ export class AuthService {
     });
   }
 
-  async getProfile(userId: string): Promise<Omit<User, 'password'>> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        accounts: {
-          select: {
-            id: true,
-            accountRef: true,
-            createdAt: true,
+  async getProfile(userId: string) {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          accounts: {
+            select: {
+              id: true,
+              accountRef: true,
+              createdAt: true,
+            },
+          },
+          kyc: {
+            select: {
+              status: true,
+              createdAt: true,
+            },
           },
         },
-        kyc: {
-          select: {
-            status: true,
-            createdAt: true,
-          },
-        },
-      },
-    });
+      });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      const { password, ...result } = user;
+      return createResponseData(result);
+    } catch (error) {
+      return createErrorData(error);
     }
-
-    const { password, ...result } = user;
-    return result;
   }
 
   async getUserSessions(userId: string) {
