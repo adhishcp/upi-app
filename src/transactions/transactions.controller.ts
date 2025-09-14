@@ -13,7 +13,7 @@ import {
 import { TransactionsService } from './transactions.service';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { TransferDto, BulkTransferDto } from './dto/transfer.dto';
-import { IdempotencyGuard } from '../middleware/idempotency.middleware';
+import { IdempotencyGuard } from '../middleware/idempotency.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiResponse } from '../common/interfaces/api-response.interface';
 import { User } from '../types/user.types';

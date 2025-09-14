@@ -21,9 +21,11 @@ import {
 } from './dto/bank-account.dto';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User } from '../types/user.types';
-import { IdempotencyGuard } from '../middleware/idempotency.middleware';
+import { IdempotencyGuard } from '../middleware/idempotency.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiResponse } from '../common/interfaces/api-response.interface';
+import { errorResponseBuilder } from '../utils/response.builder';
+import { responseBuilder } from '../utils/response.builder';
 
 @Controller('bank-accounts')
 @UseGuards(JwtAuthGuard)
@@ -34,42 +36,41 @@ export class BankAccountController {
   async createAccount(
     @Body() createBankAccountDto: CreateBankAccountDto,
     @GetUser() user: User,
-  ): Promise<ApiResponse> {
+  ) {
     const account = await this.bankAccountService.create(
       createBankAccountDto,
       user.id,
     );
-    return {
-      success: true,
-      message: 'Bank account created successfully',
-      data: account,
-    };
+    if (account.error) {
+      return errorResponseBuilder(account);
+    }
+
+    return responseBuilder(account);
   }
 
   @Get()
-  async getMyAccounts(@GetUser() user: User): Promise<ApiResponse> {
+  async getMyAccounts(@GetUser() user: User) {
     const accounts = await this.bankAccountService.getUserAccounts(user.id);
-    return {
-      success: true,
-      message: 'Accounts retrieved successfully',
-      data: accounts,
-    };
+    if (accounts.error) {
+      return errorResponseBuilder(accounts);
+    }
+    return responseBuilder(accounts);
   }
 
   @Get(':accountId')
   async getAccount(
     @Param('accountId', ParseUUIDPipe) accountId: string,
     @GetUser() user: User,
-  ): Promise<ApiResponse> {
+  ) {
     const account = await this.bankAccountService.getAccountById(
       accountId,
       user.id,
     );
-    return {
-      success: true,
-      message: 'Account retrieved successfully',
-      data: account,
-    };
+
+    if (account.error) {
+      return errorResponseBuilder(account);
+    }
+    return responseBuilder(account);
   }
 
   @Patch(':accountId')
@@ -77,29 +78,31 @@ export class BankAccountController {
     @Param('accountId', ParseUUIDPipe) accountId: string,
     @Body() updateBankAccountDto: UpdateBankAccountDto,
     @GetUser() user: User,
-  ): Promise<ApiResponse> {
+  ) {
     const account = await this.bankAccountService.update(
       accountId,
       updateBankAccountDto,
       user.id,
     );
-    return {
-      success: true,
-      message: 'Account updated successfully',
-      data: account,
-    };
+
+    if (account.error) {
+      return errorResponseBuilder(account);
+    }
+
+    return responseBuilder(account);
   }
 
   @Delete(':accountId')
   async deleteAccount(
     @Param('accountId', ParseUUIDPipe) accountId: string,
     @GetUser() user: User,
-  ): Promise<ApiResponse> {
-    await this.bankAccountService.delete(accountId, user.id);
-    return {
-      success: true,
-      message: 'Account deleted successfully',
-    };
+  ) {
+    const result = await this.bankAccountService.delete(accountId, user.id);
+    if (result.error) {
+      return errorResponseBuilder(result);
+    }
+
+    return responseBuilder(result);
   }
 
   @Post(':accountId/deposit')
@@ -109,7 +112,7 @@ export class BankAccountController {
     @Body() depositDto: DepositDto,
     @Headers('idempotency-key') idempotencyKey: string,
     @GetUser() user: User,
-  ): Promise<ApiResponse> {
+  ) {
     if (!idempotencyKey) {
       throw new BadRequestException('Idempotency key is required');
     }
@@ -121,11 +124,10 @@ export class BankAccountController {
       user.id,
     );
 
-    return {
-      success: true,
-      message: 'Deposit completed successfully',
-      data: transaction,
-    };
+    if (transaction.error) {
+      return errorResponseBuilder(transaction);
+    }
+    return responseBuilder(transaction);
   }
 
   @Post(':accountId/withdraw')
@@ -135,7 +137,7 @@ export class BankAccountController {
     @Body() withdrawDto: WithdrawDto,
     @Headers('idempotency-key') idempotencyKey: string,
     @GetUser() user: User,
-  ): Promise<ApiResponse> {
+  ) {
     if (!idempotencyKey) {
       throw new BadRequestException('Idempotency key is required');
     }
@@ -146,28 +148,27 @@ export class BankAccountController {
       idempotencyKey,
       user.id,
     );
-
-    return {
-      success: true,
-      message: 'Withdrawal completed successfully',
-      data: transaction,
-    };
+    if (transaction.error) {
+      return errorResponseBuilder(transaction);
+    }
+    return responseBuilder(transaction);
   }
 
   @Get(':accountId/balance')
   async getBalance(
     @Param('accountId', ParseUUIDPipe) accountId: string,
     @GetUser() user: User,
-  ): Promise<ApiResponse> {
+  ) {
     const balance = await this.bankAccountService.getBalance(
       accountId,
       user.id,
     );
-    return {
-      success: true,
-      message: 'Balance retrieved successfully',
-      data: balance,
-    };
+
+    if (balance.error) {
+      return errorResponseBuilder(balance);
+    }
+
+    return responseBuilder(balance);
   }
 
   @Get(':accountId/transactions')
@@ -176,7 +177,7 @@ export class BankAccountController {
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '20',
     @GetUser() user: User,
-  ): Promise<ApiResponse> {
+  ) {
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
 
@@ -191,10 +192,10 @@ export class BankAccountController {
       limitNum,
     );
 
-    return {
-      success: true,
-      message: 'Transactions retrieved successfully',
-      data: transactions,
-    };
+    if (transactions.error) {
+      return errorResponseBuilder(transactions);
+    }
+
+    return responseBuilder(transactions);
   }
 }

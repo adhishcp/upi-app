@@ -7,7 +7,7 @@ import jwtConfig from './config/jwt.config';
 import { APP_PIPE } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { TransactionModule } from './transactions/transactions.module';
-import { IdempotencyGuard } from './middleware/idempotency.middleware';
+import { IdempotencyGuard } from './middleware/idempotency.guard';
 
 @Module({
   imports: [
